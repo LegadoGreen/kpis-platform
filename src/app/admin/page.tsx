@@ -4,17 +4,7 @@ import React, { useEffect, useState } from "react";
 import PDFList from "../components/PDFList";
 import PDFUploader from "../components/PDFUploader";
 import { apiPdfs } from "../utils/api";
-
-type PDF = {
-  id: number;
-  description: string;
-  created_at: number;
-  file: {
-    name: string;
-    size: number;
-    url: string;
-  };
-};
+import { PDF } from "../interfaces/pdf";
 
 const AdminPage: React.FC = () => {
   const [pdfs, setPdfs] = useState<PDF[]>([]);
@@ -28,7 +18,7 @@ const AdminPage: React.FC = () => {
   const handleUpload = async (description: string, file: File) => {
     const formData = new FormData();
     formData.append("description", description);
-    formData.append("file", file);
+    formData.append("file1", file);
 
     const response = await apiPdfs.post("/pdfs", formData, {
       headers: {
