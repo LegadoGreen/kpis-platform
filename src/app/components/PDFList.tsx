@@ -1,15 +1,5 @@
 import React from "react";
-
-type PDF = {
-  id: number;
-  description: string;
-  created_at: number;
-  file: {
-    name: string;
-    size: number;
-    url: string;
-  };
-};
+import { PDF } from "../interfaces/pdf";
 
 type PDFListProps = {
   pdfs: PDF[];

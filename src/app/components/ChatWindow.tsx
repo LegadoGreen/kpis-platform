@@ -6,13 +6,16 @@ type ChatWindowProps = {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
   return (
-    <div className="flex-1 p-4 overflow-y-auto">
+    <div className="flex-1 p-6 bg-white rounded-lg shadow overflow-y-auto">
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className={`p-2 mb-2 rounded ${
-            msg.role === "user" ? "bg-blue-100 self-end" : "bg-gray-100"
+          className={`p-3 my-2 rounded-lg ${
+            msg.role === "user"
+              ? "bg-textImportant text-white self-end"
+              : "bg-background text-textPrimary"
           }`}
+          style={{ maxWidth: "80%" }}
         >
           {msg.content}
         </div>

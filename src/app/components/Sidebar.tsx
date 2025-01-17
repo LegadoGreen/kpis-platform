@@ -8,19 +8,19 @@ type SidebarProps = {
 
 const Sidebar: React.FC<SidebarProps> = ({ conversations, onSelectConversation, onNewConversation }) => {
   return (
-    <div className="bg-gray-100 w-1/4 h-full p-4 border-r">
+    <div className="bg-white rounded-lg shadow p-4 w-64 max-w-xs h-screen flex flex-col">
       <button
         onClick={onNewConversation}
-        className="w-full bg-blue-500 text-white py-2 rounded mb-4 hover:bg-blue-600"
+        className="bg-textImportant text-white py-2 px-4 rounded-full mb-4 hover:bg-opacity-90"
       >
-        New Chat
+        + New Chat
       </button>
-      <ul>
+      <ul className="flex-1 overflow-y-auto space-y-2">
         {conversations.map((conv) => (
           <li
             key={conv.id}
-            className="p-2 mb-2 cursor-pointer hover:bg-gray-200 rounded"
             onClick={() => onSelectConversation(conv.id)}
+            className="p-3 rounded-lg bg-background hover:bg-textImportant hover:text-white transition cursor-pointer"
           >
             {conv.title}
           </li>
