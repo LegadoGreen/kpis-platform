@@ -85,7 +85,7 @@ const ChatPage: React.FC = () => {
       <Sidebar
         conversations={conversations}
         onNewConversation={handleNewConversation}
-        onSelectConversation={(id) => {
+        onSelectConversation={() => {
           // Handle conversation selection
         }}
       />
