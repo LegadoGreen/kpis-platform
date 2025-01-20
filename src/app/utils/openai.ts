@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { toFile } from "openai";
 import { PDF } from "../interfaces/pdf";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT, dangerouslyAllowBrowser: true });
 
 export const createAssistant = async () => {
   try {
