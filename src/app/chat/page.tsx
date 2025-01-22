@@ -9,6 +9,8 @@ import {
   addMessageToThread,
   runAssistantOnThread,
   fetchThreadMessages,
+  createAssistant,
+  createVectorStore
 } from "../utils/openai";
 
 const ChatPage: React.FC = () => {
@@ -35,6 +37,25 @@ const ChatPage: React.FC = () => {
     };
 
     fetchAssistantId();
+  }, []);
+
+  useEffect(() => {
+    const initializeAssistant = async () => {
+      try {
+        const assistant = await createAssistant();
+        const vectorStoreId = await createVectorStore(assistant);
+        console.log("Assistant and Vector Store Initialized:", {
+          assistantId: assistant,
+          vectorStoreId,
+        });
+        setAssistantId(assistant);
+        localStorage.setItem('assistantId', assistant);
+      } catch (error) {
+        console.error("Error initializing assistant:", error);
+      }
+    };
+
+    initializeAssistant();
   }, []);
 
   const handleNewConversation = async () => {
@@ -81,19 +102,23 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar
-        conversations={conversations}
-        onNewConversation={handleNewConversation}
-        onSelectConversation={() => {
-          // Handle conversation selection
-        }}
-      />
-      <div className="flex flex-col flex-1 p-4 space-y-4">
-        <ChatWindow messages={messages} />
-        <ChatInput onSendMessage={handleSendMessage} />
+    assistantId ? (
+      <div className="flex h-screen bg-background">
+        <Sidebar
+          conversations={conversations}
+          onNewConversation={handleNewConversation}
+          onSelectConversation={() => {
+            // Handle conversation selection
+          }}
+        />
+        <div className="flex flex-col flex-1 p-4 space-y-4">
+          <ChatWindow messages={messages} />
+          <ChatInput onSendMessage={handleSendMessage} />
+        </div>
       </div>
-    </div>
+    ) : (
+      <p>Loading...</p>
+    )
   );
 };
 

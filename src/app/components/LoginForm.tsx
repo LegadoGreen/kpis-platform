@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useAuthActions } from "../hooks/useAuth";
+import { useAuthStore } from "../store/authStore";
+import { useRouter } from "next/navigation";
 import Input from "./Input";
 import Button from "./Button";
 
@@ -7,14 +8,14 @@ const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const { login } = useAuthActions();
+  const login = useAuthStore((state) => state.login);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
-      await login(email, password);
-      // Redirect to user dashboard or admin screen
+      await login(email, password, router);
       console.log("Login successful");
     } catch (err) {
       setError("Invalid email or password");
