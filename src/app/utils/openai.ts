@@ -5,11 +5,25 @@ import { toFile } from "openai";
 import { PDF } from "../interfaces/pdf";
 import { useAssistantStore } from "../store/assistantStore";
 
-const openai = new OpenAI({ 
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT,
-  dangerouslyAllowBrowser: true,
-  baseURL: "https://api.openai.com/v1"
-});
+// Determine environment
+const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
+
+// Configure OpenAI client
+const openai = isDevelopment
+  ? new OpenAI({
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT,
+    dangerouslyAllowBrowser: true,
+    defaultHeaders: {
+      "Access-Control-Allow-Origin": "*",
+      Origin: "https://legadogreen.github.io",
+      Referer: "https://legadogreen.github.io",
+    },
+  })
+  : new OpenAI({
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT,
+    dangerouslyAllowBrowser: true,
+  });
+
 
 export const createAssistant = async (assistantData: any) => {
   try {
@@ -75,29 +89,28 @@ export const createVectorStore = async (assistantId: string) => {
 // New function to initialize an assistant and vector store dynamically
 export const initializeAssistantAndStore = async () => {
   const assistantStore = useAssistantStore.getState();
-  // Retrieve the token from localStorage or Zustand
-  const authToken = localStorage.getItem("authToken");
 
+  const authToken = localStorage.getItem("authToken");
   if (!authToken) {
     throw new Error("Authorization token is missing.");
   }
 
-  // Fetch assistant details with Bearer token
+  // Fetch assistant data from the API
   const { data: assistantData } = await axios.get(
     "https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant/1",
     {
-      headers: {
-        Authorization: `Bearer ${authToken}`, // Add Bearer token here
-      },
+      headers: { Authorization: `Bearer ${authToken}` },
     }
   );
 
   console.log("Fetched Assistant Data:", assistantData);
 
-  // Check if the assistant and PDFs are already initialized
+  // Check if the current state matches fetched data
+  const currentPDFs = await fetchPDFs();
   if (
     assistantStore.assistantId &&
-    JSON.stringify(assistantStore.pdfs) === JSON.stringify(await fetchPDFs())
+    assistantStore.vectorStoreId &&
+    JSON.stringify(assistantStore.pdfs) === JSON.stringify(currentPDFs)
   ) {
     console.log("Using cached assistant and vector store.");
     return {
@@ -106,18 +119,13 @@ export const initializeAssistantAndStore = async () => {
     };
   }
 
-  // Create a new assistant
+  // Create a new assistant and vector store
   const assistantId = await createAssistant(assistantData);
-
-  // Create a new vector store and link PDFs
   const vectorStoreId = await createVectorStore(assistantId);
 
-  // Fetch current PDFs and cache them
-  const pdfs = await fetchPDFs();
-
-  // Update the Zustand store with new assistant and vector store details
+  // Update Zustand store with new data
   assistantStore.setAssistantId(assistantId);
-  useAssistantStore.setState({ vectorStoreId, pdfs });
+  useAssistantStore.setState({ vectorStoreId, pdfs: currentPDFs });
 
   console.log("Initialized Assistant and Vector Store:", {
     assistantId,

@@ -25,12 +25,19 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     const initialize = async () => {
-      const { assistantId } = await initializeAssistantAndStore();
-      console.log("Assistant initialized with ID:", assistantId);
+      try {
+        const { assistantId, vectorStoreId } = await initializeAssistantAndStore();
+        console.log("Initialized assistant and vector store:", {
+          assistantId,
+          vectorStoreId,
+        });
+      } catch (error) {
+        console.error("Error initializing assistant and vector store:", error);
+      }
     };
-
+  
     initialize();
-  }, []);
+  }, []);  
 
   const handleNewConversation = async () => {
     try {
