@@ -1,20 +1,18 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
-import {
+import { initializeAssistantAndStore } from "../utils/openai";
+import { useAssistantStore } from "../store/assistantStore";
+import { 
   createThread,
   addMessageToThread,
   runAssistantOnThread,
-  fetchThreadMessages,
-  createAssistant,
-  createVectorStore
+  fetchThreadMessages 
 } from "../utils/openai";
 
 const ChatPage: React.FC = () => {
-  const [assistantId, setAssistantId] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<
     { id: number; role: string; content: string }[]
@@ -23,39 +21,15 @@ const ChatPage: React.FC = () => {
     { id: number; title: string }[]
   >([{ id: 1, title: "Conversation 1" }]);
 
-  // Initialize assistant ID on component mount
-  useEffect(() => {
-    const fetchAssistantId = async () => {
-      try {
-        // Replace with your logic to retrieve the assistant ID
-        const storedAssistantId = localStorage.getItem('assistantId');
-        console.log(storedAssistantId);
-        setAssistantId(storedAssistantId);
-      } catch (error) {
-        console.error("Error fetching assistant ID:", error);
-      }
-    };
-
-    fetchAssistantId();
-  }, []);
+  const assistantId = useAssistantStore((state) => state.assistantId);
 
   useEffect(() => {
-    const initializeAssistant = async () => {
-      try {
-        const assistant = await createAssistant();
-        const vectorStoreId = await createVectorStore(assistant);
-        console.log("Assistant and Vector Store Initialized:", {
-          assistantId: assistant,
-          vectorStoreId,
-        });
-        setAssistantId(assistant);
-        localStorage.setItem('assistantId', assistant);
-      } catch (error) {
-        console.error("Error initializing assistant:", error);
-      }
+    const initialize = async () => {
+      const { assistantId } = await initializeAssistantAndStore();
+      console.log("Assistant initialized with ID:", assistantId);
     };
 
-    initializeAssistant();
+    initialize();
   }, []);
 
   const handleNewConversation = async () => {
@@ -73,7 +47,6 @@ const ChatPage: React.FC = () => {
   };
 
   const handleSendMessage = async (content: string) => {
-    console.log(threadId, assistantId);
     if (!threadId || !assistantId) {
       console.error("Thread or Assistant ID not initialized");
       return;
@@ -84,7 +57,6 @@ const ChatPage: React.FC = () => {
     try {
       await addMessageToThread(threadId, content);
       const runId = await runAssistantOnThread(threadId, assistantId);
-      console.log('runId', runId);
       if (runId) {
         const assistantMessages = await fetchThreadMessages(threadId, runId);
         setMessages((prev) => [
@@ -117,7 +89,7 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
     ) : (
-      <p>Loading...</p>
+      <p>Loading assistant...</p>
     )
   );
 };
