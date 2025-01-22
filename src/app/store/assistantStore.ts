@@ -10,7 +10,11 @@ export const useAssistantStore = create(
       assistantId: null,
       vectorStoreId: null,
       pdfs: [],
+      assistantData: null, // New field for assistant data
       setAssistantId: (id: string) => set({ assistantId: id }),
+
+      setVectorStoreId: (id: string) => set({ vectorStoreId: id }),
+      setAssistantData: (data: any) => set({ assistantData: data }),
 
       initializeAssistant: async () => {
         try {
@@ -21,39 +25,55 @@ export const useAssistantStore = create(
             throw new Error("Authorization token is missing.");
           }
 
-          // Fetch assistant details from the API
-          const { data: assistantData } = await axios.get(
-            "https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant/1",
-            {
-              headers: {
-                Authorization: `Bearer ${authToken}`,
-              },
-            }
-          );
+          // Fetch current assistant data and PDFs
+          const [assistantResponse, currentPDFs] = await Promise.all([
+            axios.get("https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant/1", {
+              headers: { Authorization: `Bearer ${authToken}` },
+            }),
+            fetchPDFs(),
+          ]);
 
-          console.log("Fetched Assistant Data:", assistantData);
+          const fetchedAssistantData = assistantResponse.data;
+          console.log("Fetched Assistant Data:", fetchedAssistantData);
 
-          // Check if the assistant and PDFs match the current data
-          const currentPDFs = await fetchPDFs();
-          if (
-            state.assistantId &&
-            state.vectorStoreId &&
-            JSON.stringify(state.pdfs) === JSON.stringify(currentPDFs)
-          ) {
-            console.log("Reusing existing assistant and vector store.");
+          // Check if assistant data or PDFs have changed
+          const hasAssistantDataChanged =
+            JSON.stringify(state.assistantData) !== JSON.stringify(fetchedAssistantData);
+          const havePDFsChanged =
+            JSON.stringify(state.pdfs) !== JSON.stringify(currentPDFs);
+
+          console.log("Assistant Data Changed:", hasAssistantDataChanged);
+          console.log("PDFs Changed:", havePDFsChanged);
+
+          if (!hasAssistantDataChanged && !havePDFsChanged) {
+            console.log("Using existing assistant and vector store.");
             return;
           }
 
-          // Create new assistant and vector store if needed
-          const assistantId = await createAssistant(assistantData);
-          const vectorStoreId = await createVectorStore(assistantId);
+          // Create new assistant if necessary
+          let assistantId = state.assistantId;
+          if (hasAssistantDataChanged || havePDFsChanged) {
+            assistantId = await createAssistant(fetchedAssistantData);
+            console.log("Created New Assistant ID:", assistantId);
+          }
 
-          // Update state with new assistant and vector store
-          set({ assistantId, vectorStoreId, pdfs: currentPDFs });
+          let vectorStoreId = state.vectorStoreId;
+          vectorStoreId = await createVectorStore(assistantId!);
+          if (havePDFsChanged) {
+            if (assistantId) {
+              vectorStoreId = await createVectorStore(assistantId);
+            } else {
+              throw new Error("Assistant ID is null.");
+            }
+            console.log("Created New Vector Store ID:", vectorStoreId);
+          }
 
-          console.log("Assistant and vector store initialized:", {
+          // Update Zustand state
+          set({
             assistantId,
             vectorStoreId,
+            assistantData: fetchedAssistantData,
+            pdfs: currentPDFs,
           });
         } catch (error) {
           console.error("Error initializing assistant:", error);
@@ -61,17 +81,21 @@ export const useAssistantStore = create(
       },
     }),
     {
-      name: "assistant-store", // Key for localStorage
+      name: "assistant-store",
       partialize: (state) => ({
         assistantId: state.assistantId,
         vectorStoreId: state.vectorStoreId,
         pdfs: state.pdfs,
+        assistantData: state.assistantData,
         initializeAssistant: state.initializeAssistant,
         setAssistantId: state.setAssistantId,
+        setVectorStoreId: state.setVectorStoreId,
+        setAssistantData: state.setAssistantData,
       }),
     }
   )
 );
+
 
 // Helper function to fetch PDF metadata
 const fetchPDFs = async (): Promise<string[]> => {
