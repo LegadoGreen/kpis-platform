@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { toFile } from "openai";
 import { PDF } from "../interfaces/pdf";
 import { useAssistantStore } from "../store/assistantStore";
+import { withLock } from "./lock";
 
 // Determine environment
 const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
@@ -52,7 +53,7 @@ export const createVectorStore = async (assistantId: string) => {
     const files = await Promise.all(
       pdfs.map(async (pdf: PDF) => {
         const response = await axios.get(pdf.file.url, {
-          responseType: "arraybuffer", // Ensure binary data
+          responseType: "arraybuffer",
         });
 
         const file = await toFile(response.data, pdf.file.name, {
@@ -87,79 +88,98 @@ export const createVectorStore = async (assistantId: string) => {
 };
 
 
-// New function to initialize an assistant and vector store dynamically
-export const initializeAssistantAndStore = async () => {
-  const assistantStore = useAssistantStore.getState();
+export const updateAssistantWithVectorStore = async (
+  assistantId: string,
+  vectorStoreId: string
+) => {
+  try {
+    // Update the assistant with the existing vector store
+    await openai.beta.assistants.update(assistantId, {
+      tool_resources: {
+        file_search: { vector_store_ids: [vectorStoreId] },
+      },
+    });
 
-  const authToken = localStorage.getItem("authToken");
-  if (!authToken) {
-    throw new Error("Authorization token is missing.");
+    console.log(`Updated Assistant ${assistantId} with Vector Store ${vectorStoreId}`);
+  } catch (error) {
+    console.error("Error updating assistant with vector store:", error);
+    throw error;
   }
-
-  // Fetch current assistant data and PDFs
-  const [assistantResponse, currentPDFs] = await Promise.all([
-    axios.get("https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant/1", {
-      headers: { Authorization: `Bearer ${authToken}` },
-    }),
-    fetchPDFs(),
-  ]);
-
-  const fetchedAssistantData = assistantResponse.data;
-  console.log("Fetched Assistant Data:", fetchedAssistantData);
-
-  // Check if assistant data or PDFs have changed
-  const hasAssistantDataChanged =
-    JSON.stringify(assistantStore.assistantData) !==
-    JSON.stringify(fetchedAssistantData);
-  const havePDFsChanged =
-    JSON.stringify(assistantStore.pdfs) !== JSON.stringify(currentPDFs);
-
-  console.log("Assistant Data Changed:", hasAssistantDataChanged);
-  console.log("PDFs Changed:", havePDFsChanged);
-
-  // Determine actions based on changes
-  if (!hasAssistantDataChanged && !havePDFsChanged) {
-    console.log("Using cached assistant and vector store.");
-    return {
-      assistantId: assistantStore.assistantId,
-      vectorStoreId: assistantStore.vectorStoreId,
-    };
-  }
-
-  // Create a new assistant if assistant data changed or both changed
-  let assistantId = assistantStore.assistantId;
-  if (hasAssistantDataChanged || havePDFsChanged) {
-    assistantId = await createAssistant(fetchedAssistantData);
-    console.log("Created New Assistant ID:", assistantId);
-  }
-
-  // Create a new vector store if PDFs changed
-  let vectorStoreId = assistantStore.vectorStoreId;
-  if (havePDFsChanged) {
-    if (assistantId) {
-      vectorStoreId = await createVectorStore(assistantId);
-    } else {
-      throw new Error("Assistant ID is null.");
-    }
-    console.log("Created New Vector Store ID:", vectorStoreId);
-  }
-
-  // Update Zustand store with the latest data
-  useAssistantStore.setState({
-    assistantId,
-    vectorStoreId,
-    assistantData: fetchedAssistantData,
-    pdfs: currentPDFs,
-  });
-
-  console.log("Initialized Assistant and Vector Store:", {
-    assistantId,
-    vectorStoreId,
-  });
-
-  return { assistantId, vectorStoreId };
 };
 
+export const initializeAssistantAndStore = async (): Promise<{ assistantId: string; vectorStoreId: string }> => {
+  return await withLock(async () => {
+    const assistantStore = useAssistantStore.getState();
+
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      throw new Error("Authorization token is missing.");
+    }
+
+    // Fetch current assistant data and PDFs
+    const [assistantResponse, currentPDFs] = await Promise.all([
+      axios.get("https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant/1", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      }),
+      fetchPDFs(),
+    ]);
+
+    const fetchedAssistantData = assistantResponse.data;
+
+    // Check if assistant data or PDFs have changed
+    const hasAssistantDataChanged =
+      JSON.stringify(assistantStore.assistantData) !==
+      JSON.stringify(fetchedAssistantData);
+    const havePDFsChanged =
+      JSON.stringify(assistantStore.pdfs) !== JSON.stringify(currentPDFs);
+
+    console.log("Assistant Data Changed:", hasAssistantDataChanged);
+    console.log("PDFs Changed:", havePDFsChanged);
+
+    if (!hasAssistantDataChanged && !havePDFsChanged) {
+      console.log("Using cached assistant and vector store.");
+      return {
+        assistantId: assistantStore.assistantId,
+        vectorStoreId: assistantStore.vectorStoreId,
+      };
+    }
+
+    let assistantId = assistantStore.assistantId;
+    let vectorStoreId = assistantStore.vectorStoreId;
+
+    // If assistant data has changed, create a new assistant and link the vector store
+    if (hasAssistantDataChanged) {
+      assistantId = await createAssistant(fetchedAssistantData);
+
+      if (vectorStoreId) {
+        await updateAssistantWithVectorStore(assistantId, vectorStoreId);
+      }
+
+      console.log("Created new Assistant ID and linked Vector Store:", assistantId);
+    }
+
+    // If PDFs have changed, create a new vector store and associate it
+    if (havePDFsChanged) {
+      vectorStoreId = await createVectorStore(assistantId!);
+      console.log("Created new Vector Store ID:", vectorStoreId);
+    }
+
+    // Update Zustand store with the latest data
+    useAssistantStore.setState({
+      assistantId,
+      vectorStoreId,
+      assistantData: fetchedAssistantData,
+      pdfs: currentPDFs,
+    });
+
+    console.log("To return:", {
+      assistantId,
+      vectorStoreId,
+    });
+
+    return { assistantId, vectorStoreId };
+  });
+};
 
 export const createThread = async (message: string) => {
   try {
