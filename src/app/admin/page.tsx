@@ -41,7 +41,7 @@ const AdminPDFPage: React.FC = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold text-textImportant mb-6">
-        PDFs Management
+        Manejo de PDFs
       </h1>
 
       <div className="flex flex-row-reverse">
@@ -49,7 +49,7 @@ const AdminPDFPage: React.FC = () => {
           onClick={() => setIsUploaderOpen(true)}
           className="bg-textImportant text-white px-4 py-2 rounded mb-6"
         >
-          Upload PDF
+          Subir PDF
         </button>
       </div>
 

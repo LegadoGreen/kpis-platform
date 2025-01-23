@@ -81,7 +81,7 @@ const AgentPage: React.FC = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold text-textImportant mb-6">
-        Agent Management
+        Manejo de Agente
       </h1>
       <AgentForm agent={agent} onSave={handleSave} />
     </div>

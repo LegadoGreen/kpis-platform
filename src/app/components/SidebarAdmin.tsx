@@ -18,8 +18,13 @@ const SidebarAdmin: React.FC = () => {
         PDFs
       </Link>
       <Link href="/admin/agent" className={linkClasses("/admin/agent")}>
-        Agent
+        Agente
       </Link>
+      <div className="mt-auto">
+        <Link href="/auth/logout" className={linkClasses("/auth/logout")}>
+          Cerrar sesión
+        </Link>
+      </div>
     </nav>
   );
 };

@@ -29,6 +29,14 @@ export interface Message {
   created_at?: string;
 }
 
+export interface Agent {
+  id: number;
+  name: string;
+  instructions: string;
+  model: string;
+  created_at: number;
+}
+
 export interface GetMessages extends Conversation {
   messages: Message[];
 }

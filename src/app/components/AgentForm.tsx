@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-
-interface Agent {
-  id: number;
-  name: string;
-  instructions: string;
-  model: string;
-  created_at: number;
-}
+import { Agent } from "@/app/interfaces/assistant";
 
 interface AgentFormProps {
   agent: Agent;
@@ -34,7 +27,7 @@ const AgentForm: React.FC<AgentFormProps> = ({ agent, onSave }) => {
       {/* Name */}
       <div>
         <label className="block text-sm font-semibold mb-1" htmlFor="agent-name">
-          Name
+          Nombre
         </label>
         <input
           id="agent-name"
@@ -51,7 +44,7 @@ const AgentForm: React.FC<AgentFormProps> = ({ agent, onSave }) => {
           className="block text-sm font-semibold mb-1"
           htmlFor="agent-model"
         >
-          Model
+          Modelo
         </label>
         <input
           id="agent-model"
@@ -68,7 +61,7 @@ const AgentForm: React.FC<AgentFormProps> = ({ agent, onSave }) => {
           className="block text-sm font-semibold mb-1"
           htmlFor="agent-instructions"
         >
-          Instructions
+          Intrucciones
         </label>
         <textarea
           id="agent-instructions"
@@ -82,7 +75,7 @@ const AgentForm: React.FC<AgentFormProps> = ({ agent, onSave }) => {
         type="submit"
         className="bg-textImportant text-white px-4 py-2 rounded"
       >
-        Save
+        Guardar
       </button>
     </form>
   );
