@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios"; // If you need it, ensure to install: `yarn add axios`
 import AgentForm from "../../components/AgentForm";
+import LogoMessage from "@/app/components/LogoMessage";
 
 const AGENT_ID = 1; // Or obtain from env/params if multiple agents
 const AGENT_API_BASE = "https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant";
@@ -62,11 +63,19 @@ const AgentPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div>Loading agent data...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <LogoMessage message="Cargando..." />
+      </div>
+    );
   }
 
   if (!agent) {
-    return <div>No agent found.</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <LogoMessage message="No se ha encontrado agente" />
+      </div>
+    );
   }
 
   return (

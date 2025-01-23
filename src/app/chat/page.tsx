@@ -17,9 +17,9 @@ import {
   createConversation,
   getAllConversations,
   createMessage,
-  getConversationById,
   getMessages
 } from "../utils/assistantApi";
+import LogoMessage from "../components/LogoMessage";
 
 interface LocalMessage {
   id: number;      // local unique ID for rendering
@@ -192,7 +192,9 @@ const ChatPage: React.FC = () => {
       </div>
     </div>
   ) : (
-    <p>Loading assistant...</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <LogoMessage message="Cargando Asistente..." />
+    </div>
   );
 };
 
