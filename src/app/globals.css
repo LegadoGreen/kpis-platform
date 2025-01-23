@@ -9,6 +9,7 @@
   --textPrimary: #0d0d46;
   --text-important: #0d0d0d;
   --error: #f93a37;
+  --legado-brown: #5a4c40;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +19,7 @@
     --textPrimary: #ededed;
     --text-important: #ffffff;
     --error: #f93a37;
+    --legado-brown: #5a4c40;
   }
 }
 

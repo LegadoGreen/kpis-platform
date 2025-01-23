@@ -25,7 +25,7 @@ const LoginForm: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-sm mx-auto bg-white p-6 rounded shadow-md">
-      <h1 className="text-2xl font-semibold text-center mb-4">Login</h1>
+      <img src="/logo_legado.png" alt="Logo" className="w-24 mx-auto" />
       {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
       <Input
         id="email"
@@ -33,7 +33,7 @@ const LoginForm: React.FC = () => {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="Enter your email"
+        placeholder="Ingresa tu correo"
       />
       <Input
         id="password"
@@ -41,10 +41,10 @@ const LoginForm: React.FC = () => {
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        placeholder="Enter your password"
+        placeholder="Ingresa tu contrasena"
         className="mt-4"
       />
-      <Button type="submit" className="mt-6 w-full">
+      <Button type="submit" className="mt-6 bg-legadoBrown text-white w-full hover:bg-orange-950">
         Login
       </Button>
     </form>
