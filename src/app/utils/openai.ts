@@ -67,6 +67,10 @@ export const createVectorStore = async (assistantId: string) => {
 
     const vectorStore = await openai.beta.vectorStores.create({
       name: "Uploaded PDFs",
+      expires_after: {
+        anchor: "last_active_at",
+        days: 3
+      }
     });
 
     await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {

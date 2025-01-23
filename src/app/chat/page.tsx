@@ -19,7 +19,7 @@ const ChatPage: React.FC = () => {
   >([]);
   const [conversations, setConversations] = useState<
     { id: number; title: string }[]
-  >([{ id: 1, title: "Conversation 1" }]);
+  >([]);
 
   const assistantId = useAssistantStore((state) => state.assistantId);
 
@@ -54,24 +54,43 @@ const ChatPage: React.FC = () => {
   };
 
   const handleSendMessage = async (content: string) => {
-    if (!threadId || !assistantId) {
-      console.error("Thread or Assistant ID not initialized");
+    if (!assistantId) {
+      console.error("Assistant ID not initialized");
       return;
     }
-
+  
+    // Add the user's message to the local state to display it immediately
     setMessages([...messages, { id: Date.now(), role: "user", content }]);
-
+  
     try {
-      await addMessageToThread(threadId, content);
-      const runId = await runAssistantOnThread(threadId, assistantId);
+      let currentThreadId = threadId;
+  
+      // Check if a threadId exists; if not, create a new thread
+      if (!currentThreadId) {
+        currentThreadId = await createThread("Start a new conversation");
+        setThreadId(currentThreadId);
+  
+        // Optionally update the conversations list
+        setConversations((prevConversations) => [
+          ...prevConversations,
+          { id: Date.now(), title: `Conversation ${prevConversations.length + 1}` },
+        ]);
+      }
+  
+      // Continue with adding the message to the thread and running the assistant
+      await addMessageToThread(currentThreadId, content);
+      const runId = await runAssistantOnThread(currentThreadId, assistantId);
+  
       if (runId) {
-        const assistantMessages = await fetchThreadMessages(threadId, runId);
+        const assistantMessages = await fetchThreadMessages(currentThreadId, runId);
         setMessages((prev) => [
           ...prev,
           ...assistantMessages.map((msg) => ({
             id: Date.now(),
             role: msg.role,
-            content: msg.content[0].type === "text" ? msg.content[0].text.value : "Error con el mensaje",
+            content: msg.content[0].type === "text"
+              ? msg.content[0].text.value
+              : "Error with the message",
           })),
         ]);
       }
