@@ -5,9 +5,8 @@ import PDFList from "../components/PDFList";
 import PDFUploader from "../components/PDFUploader";
 import { apiPdfs } from "../utils/api";
 import { PDF } from "../interfaces/pdf";
-import RouteGuard from "../context/RouteGuard";
 
-const AdminPage: React.FC = () => {
+const AdminPDFPage: React.FC = () => {
   const [pdfs, setPdfs] = useState<PDF[]>([]);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
 
@@ -40,29 +39,30 @@ const AdminPage: React.FC = () => {
   }, []);
 
   return (
-    <RouteGuard role="admin">  
-      <div className="min-h-screen bg-background p-6">
-        <h1 className="text-2xl font-bold text-textImportant mb-6">
-          Admin Dashboard
-        </h1>
-        <div className="flex flex-row-reverse">
-          <button
-            onClick={() => setIsUploaderOpen(true)}
-            className="bg-textImportant text-white px-4 py-2 rounded mb-6"
-          >
-            Upload PDF
-          </button>
-        </div>
-        <PDFList pdfs={pdfs} onDelete={handleDelete} />
-        {isUploaderOpen && (
-          <PDFUploader
-            onUpload={handleUpload}
-            onClose={() => setIsUploaderOpen(false)}
-          />
-        )}
+    <div>
+      <h1 className="text-2xl font-bold text-textImportant mb-6">
+        PDFs Management
+      </h1>
+
+      <div className="flex flex-row-reverse">
+        <button
+          onClick={() => setIsUploaderOpen(true)}
+          className="bg-textImportant text-white px-4 py-2 rounded mb-6"
+        >
+          Upload PDF
+        </button>
       </div>
-    </RouteGuard>
+
+      <PDFList pdfs={pdfs} onDelete={handleDelete} />
+
+      {isUploaderOpen && (
+        <PDFUploader
+          onUpload={handleUpload}
+          onClose={() => setIsUploaderOpen(false)}
+        />
+      )}
+    </div>
   );
 };
 
-export default AdminPage;
+export default AdminPDFPage;
