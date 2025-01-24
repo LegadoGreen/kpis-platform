@@ -1,3 +1,5 @@
+import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+
 export type User = {
   id: number;
   email: string;
@@ -14,7 +16,7 @@ export type AuthContextType = {
   authToken: string | null;
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, router: any) => Promise<void>;
+  login: (email: string, password: string, router: AppRouterInstance) => Promise<void>;
   logout: () => void;
   hasRole: (role: string) => boolean;
 };

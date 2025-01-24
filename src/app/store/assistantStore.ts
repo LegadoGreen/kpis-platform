@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import axios from "axios";
 import { createAssistant, createVectorStore } from "../utils/openai";
-import { AssistantState } from "../interfaces/assistant";
+import { Agent, AssistantState } from "../interfaces/assistant";
+import { PDF } from "../interfaces/pdf";
 
 export const useAssistantStore = create(
   persist<AssistantState>(
@@ -14,7 +15,7 @@ export const useAssistantStore = create(
       setAssistantId: (id: string) => set({ assistantId: id }),
 
       setVectorStoreId: (id: string) => set({ vectorStoreId: id }),
-      setAssistantData: (data: any) => set({ assistantData: data }),
+      setAssistantData: (data: Agent) => set({ assistantData: data }),
 
       initializeAssistant: async () => {
         try {
@@ -100,5 +101,5 @@ export const useAssistantStore = create(
 // Helper function to fetch PDF metadata
 const fetchPDFs = async (): Promise<string[]> => {
   const { data } = await axios.get("https://xz9q-ubfs-tc3s.n7d.xano.io/api:--QzKR6t/pdfs");
-  return data.map((pdf: any) => pdf.file.url); // Extract only PDF URLs
+  return data.map((pdf: PDF) => pdf.file.url); // Extract only PDF URLs
 };

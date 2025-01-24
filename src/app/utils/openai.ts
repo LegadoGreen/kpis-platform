@@ -3,6 +3,7 @@ import axios from "axios";
 import OpenAI from "openai";
 import { toFile } from "openai";
 import { PDF } from "../interfaces/pdf";
+import { Agent } from "../interfaces/assistant";
 import { useAssistantStore } from "../store/assistantStore";
 import { withLock } from "./lock";
 
@@ -26,7 +27,7 @@ const openai = isDevelopment
   });
 
 
-export const createAssistant = async (assistantData: any) => {
+export const createAssistant = async (assistantData: Agent) => {
   try {
     const assistant = await openai.beta.assistants.create({
       name: assistantData.name,
@@ -111,7 +112,7 @@ export const updateAssistantWithVectorStore = async (
   }
 };
 
-export const initializeAssistantAndStore = async (): Promise<{ assistantId: string; vectorStoreId: string }> => {
+export const initializeAssistantAndStore = async (): Promise<{ assistantId: string | null; vectorStoreId: string | null }> => {
   return await withLock(async () => {
     const assistantStore = useAssistantStore.getState();
 
