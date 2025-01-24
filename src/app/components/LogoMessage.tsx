@@ -11,7 +11,7 @@ const LogoMessage: React.FC<LogoMessageProps> = ({ message }) => {
   return (
     <div className="w-full h-full max-w-sm mx-auto bg-white p-6 rounded shadow-md flex flex-col items-center">
       {/* Logo */}
-      <Image src="/logo_legado.png" alt="Logo" width={1000} height={1000} className="w-24 mb-4 mx-auto" />
+      <Image src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/logo_legado.png`} alt="Logo" width={1000} height={1000} className="w-24 mb-4 mx-auto" />
 
       {/* Loading Spinner */}
       <div className="flex justify-center items-center mb-4">
