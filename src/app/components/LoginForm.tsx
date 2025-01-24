@@ -27,7 +27,7 @@ const LoginForm: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-sm mx-auto bg-white p-6 rounded shadow-md">
       <Image
-        src="/logo_legado.png"
+        src={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/logo_legado.png`}
         alt="Logo"
         width={1000}
         height={1000}
