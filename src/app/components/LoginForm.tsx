@@ -3,6 +3,7 @@ import { useAuthStore } from "../store/authStore";
 import { useRouter } from "next/navigation";
 import Input from "./Input";
 import Button from "./Button";
+import Image from "next/image";
 
 const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -25,7 +26,7 @@ const LoginForm: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-sm mx-auto bg-white p-6 rounded shadow-md">
-      <img src="/logo_legado.png" alt="Logo" className="w-24 mx-auto" />
+      <Image src="/logo_legado.png" alt="Logo" width={1000} height={1000} className="w-24 mx-auto" />
       {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
       <Input
         id="email"

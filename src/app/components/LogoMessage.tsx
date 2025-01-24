@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React from "react";
 
 interface LogoMessageProps {
@@ -10,7 +11,7 @@ const LogoMessage: React.FC<LogoMessageProps> = ({ message }) => {
   return (
     <div className="w-full h-full max-w-sm mx-auto bg-white p-6 rounded shadow-md flex flex-col items-center">
       {/* Logo */}
-      <img src="/logo_legado.png" alt="Logo" className="w-24 mb-4" />
+      <Image src="/logo_legado.png" alt="Logo" width={1000} height={1000} className="w-24 mb-4 mx-auto" />
 
       {/* Loading Spinner */}
       <div className="flex justify-center items-center mb-4">
