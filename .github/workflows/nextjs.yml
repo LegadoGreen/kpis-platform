@@ -78,6 +78,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           NEXT_PUBLIC_OPENAI_API_ENDPOINT: ${{ secrets.NEXT_PUBLIC_OPENAI_API_ENDPOINT }}
+          NEXT_PUBLIC_BASE_PATH: ${{ github.repository }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
