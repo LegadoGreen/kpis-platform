@@ -1,9 +1,11 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
+import { initializeAssistantAndStore } from "../utils/openai";
+import { useAssistantStore } from "../store/assistantStore";
+import { Conversation } from "../interfaces/assistant";
 import {
   createThread,
   addMessageToThread,
@@ -11,88 +13,187 @@ import {
   fetchThreadMessages,
 } from "../utils/openai";
 
-const ChatPage: React.FC = () => {
-  const [assistantId, setAssistantId] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<
-    { id: number; role: string; content: string }[]
-  >([]);
-  const [conversations, setConversations] = useState<
-    { id: number; title: string }[]
-  >([{ id: 1, title: "Conversation 1" }]);
+import {
+  createConversation,
+  getAllConversations,
+  createMessage,
+  getMessages
+} from "../utils/assistantApi";
+import LogoMessage from "../components/LogoMessage";
 
-  // Initialize assistant ID on component mount
+interface LocalMessage {
+  id: number;      // local unique ID for rendering
+  role: string;    // "user" or "assistant"
+  content: string;
+}
+
+const ChatPage: React.FC = () => {
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<LocalMessage[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const assistantId = useAssistantStore((state) => state.assistantId);
+
   useEffect(() => {
-    const fetchAssistantId = async () => {
+    const initialize = async () => {
       try {
-        // Replace with your logic to retrieve the assistant ID
-        const storedAssistantId = localStorage.getItem('assistantId');
-        console.log(storedAssistantId);
-        setAssistantId(storedAssistantId);
+        const { assistantId: initAssistantId, vectorStoreId } =
+          await initializeAssistantAndStore();
+        console.log("Initialized assistant & vector store:", {
+          initAssistantId,
+          vectorStoreId,
+        });
+
+        // If you want to load existing conversations from Xano
+        const existing = await getAllConversations();
+        // inverse order
+        existing.reverse();
+        setConversations(existing);
       } catch (error) {
-        console.error("Error fetching assistant ID:", error);
+        console.error("Error initializing:", error);
       }
     };
 
-    fetchAssistantId();
+    initialize();
   }, []);
 
+  // Creates a new "thread" on the front end (OpenAI logic) 
+  // and also a new conversation in Xano
   const handleNewConversation = async () => {
     try {
-      const threadId = await createThread("Start a new conversation");
-      setThreadId(threadId);
-      setConversations([
-        ...conversations,
-        { id: Date.now(), title: `Conversation ${conversations.length + 1}` },
-      ]);
+      if (!assistantId) {
+        console.error("Assistant ID not initialized");
+        return;
+      }
+
+      // 1) Create a new thread with openai.ts
+      const newThreadId = await createThread("Start a new conversation");
+      setThreadId(newThreadId);
+
+      // 2) Store it in Xano
+      const newConvTitle = `Conversation ${conversations.length + 1}`;
+      const newConv = await createConversation(assistantId, newThreadId, newConvTitle);
+
+      // 3) Update local state
+      setConversations((prev) => [...prev, newConv]);
+      setActiveConversationId(newConv.id);
       setMessages([]);
     } catch (error) {
       console.error("Error creating new conversation:", error);
     }
   };
 
+  // Send user message to the AI, store it in Xano
   const handleSendMessage = async (content: string) => {
-    console.log(threadId, assistantId);
-    if (!threadId || !assistantId) {
-      console.error("Thread or Assistant ID not initialized");
+    if (!assistantId) {
+      console.error("Assistant ID not initialized");
       return;
     }
 
-    setMessages([...messages, { id: Date.now(), role: "user", content }]);
+    // Optimistically show it in local chat window
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), role: "user", content },
+    ]);
 
     try {
-      await addMessageToThread(threadId, content);
-      const runId = await runAssistantOnThread(threadId, assistantId);
-      console.log('runId', runId);
+      // Ensure we have a thread
+      let currentThreadId = threadId;
+      if (!currentThreadId) {
+        currentThreadId = await createThread("Start a new conversation");
+        setThreadId(currentThreadId);
+      }
+
+      // Also ensure we have an active conversation in Xano
+      let conversationId = activeConversationId;
+      if (!conversationId) {
+        const newConvTitle = `Conversation ${conversations.length + 1}`;
+        const newConv = await createConversation(assistantId, currentThreadId, newConvTitle);
+        setConversations((prev) => [...prev, newConv]);
+        conversationId = newConv.id;
+        setActiveConversationId(conversationId);
+      }
+
+      await addMessageToThread(currentThreadId, content);
+
+      if (conversationId) {
+        await createMessage(conversationId, "user", content);
+      }
+
+      // 3) Run the assistant (OpenAI) logic
+      const runId = await runAssistantOnThread(currentThreadId, assistantId);
+
+      // 4) Fetch the assistant’s messages from your local AI
       if (runId) {
-        const assistantMessages = await fetchThreadMessages(threadId, runId);
-        setMessages((prev) => [
-          ...prev,
-          ...assistantMessages.map((msg) => ({
-            id: Date.now(),
-            role: msg.role,
-            content: msg.content[0].type === "text" ? msg.content[0].text.value : "Error con el mensaje",
-          })),
-        ]);
+        const assistantMessages = await fetchThreadMessages(currentThreadId, runId);
+
+        // For each assistant message, update local & Xano
+        for (const msg of assistantMessages) {
+          const textContent =
+            msg.content[0].type === "text"
+              ? msg.content[0].text.value
+              : "Error in message content";
+
+          // Local state
+          setMessages((prev) => [
+            ...prev,
+            { id: Date.now(), role: msg.role, content: textContent },
+          ]);
+
+          // Xano
+          if (conversationId) {
+            await createMessage(conversationId, msg.role, textContent);
+          }
+        }
       }
     } catch (error) {
       console.error("Error during message exchange:", error);
     }
   };
 
-  return (
+
+  const handleSelectConversation = async (conversationId: number) => {
+    try {
+      // 1) Fetch the conversation from Xano
+      const fetchedMessages = await getMessages(conversationId);
+
+      setActiveConversationId(conversationId);
+      setThreadId(fetchedMessages.thread_id);
+
+      const localMsgFormat = fetchedMessages.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // order by id
+      localMsgFormat.sort((a, b) => a.id - b.id);
+
+      // 6) Finally, set the messages to display in ChatWindow
+      setMessages(localMsgFormat);
+    } catch (error) {
+      console.error("Error selecting conversation:", error);
+    }
+  };
+
+  return assistantId ? (
     <div className="flex h-screen bg-background">
       <Sidebar
-        conversations={conversations}
+        conversations={conversations.map((c) => ({
+          id: c.id,
+          title: c.title || `Conv ${c.id}`,
+        }))}
         onNewConversation={handleNewConversation}
-        onSelectConversation={() => {
-          // Handle conversation selection
-        }}
+        onSelectConversation={(id) => handleSelectConversation(Number(id))}
       />
       <div className="flex flex-col flex-1 p-4 space-y-4">
         <ChatWindow messages={messages} />
         <ChatInput onSendMessage={handleSendMessage} />
       </div>
+    </div>
+  ) : (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <LogoMessage message="Cargando Asistente..." />
     </div>
   );
 };

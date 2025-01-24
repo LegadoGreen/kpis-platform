@@ -9,6 +9,7 @@
   --textPrimary: #0d0d46;
   --text-important: #0d0d0d;
   --error: #f93a37;
+  --legado-brown: #5a4c40;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,11 +19,12 @@
     --textPrimary: #ededed;
     --text-important: #ffffff;
     --error: #f93a37;
+    --legado-brown: #5a4c40;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+  font-family: "Nunito Sans", Sans-serif;
 }

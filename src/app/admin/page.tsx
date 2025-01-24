@@ -6,7 +6,7 @@ import PDFUploader from "../components/PDFUploader";
 import { apiPdfs } from "../utils/api";
 import { PDF } from "../interfaces/pdf";
 
-const AdminPage: React.FC = () => {
+const AdminPDFPage: React.FC = () => {
   const [pdfs, setPdfs] = useState<PDF[]>([]);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
 
@@ -39,19 +39,22 @@ const AdminPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div>
       <h1 className="text-2xl font-bold text-textImportant mb-6">
-        Admin Dashboard
+        Manejo de PDFs
       </h1>
+
       <div className="flex flex-row-reverse">
         <button
           onClick={() => setIsUploaderOpen(true)}
           className="bg-textImportant text-white px-4 py-2 rounded mb-6"
         >
-          Upload PDF
+          Subir PDF
         </button>
       </div>
+
       <PDFList pdfs={pdfs} onDelete={handleDelete} />
+
       {isUploaderOpen && (
         <PDFUploader
           onUpload={handleUpload}
@@ -62,4 +65,4 @@ const AdminPage: React.FC = () => {
   );
 };
 
-export default AdminPage;
+export default AdminPDFPage;

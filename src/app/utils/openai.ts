@@ -1,17 +1,38 @@
+"use client";
 import axios from "axios";
 import OpenAI from "openai";
 import { toFile } from "openai";
 import { PDF } from "../interfaces/pdf";
+import { useAssistantStore } from "../store/assistantStore";
+import { withLock } from "./lock";
 
-const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT, dangerouslyAllowBrowser: true });
+// Determine environment
+const isDevelopment = process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
 
-export const createAssistant = async () => {
+// Configure OpenAI client
+const openai = isDevelopment
+  ? new OpenAI({
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT,
+    dangerouslyAllowBrowser: true,
+    defaultHeaders: {
+      "Access-Control-Allow-Origin": "*",
+      Origin: "https://legadogreen.github.io",
+      Referer: "https://legadogreen.github.io",
+    },
+  })
+  : new OpenAI({
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_ENDPOINT,
+    dangerouslyAllowBrowser: true,
+  });
+
+
+export const createAssistant = async (assistantData: any) => {
   try {
     const assistant = await openai.beta.assistants.create({
-      name: "Legado - Generador de KPIs",
-      instructions: "Este GPT es un generador especializado en Key Performance Indicators (KPIs) de alta calidad. Su propósito es interactuar con los usuarios para entender los detalles de sus proyectos y ofrecer KPIs personalizados y ajustados a los objetivos y características del proyecto. Puede procesar datos provenientes de archivos PDF dados en la instruccion, para extraer información relevante y construir KPIs más precisos y útiles. Estos PDFs, contienen información clave como indicadores temáticos y temáticas de impacto. Al generar los KPIs, utiliza la siguiente estructura estándar para cada uno: (Nombre KPI: - Tipo, - Definición, - Fórmula/Cálculo, - Rango, - Fuente); Adicionalmente, puede incluir otros elementos relevantes según las necesidades del proyecto, como periodicidad, unidad de medida y herramientas recomendadas para su seguimiento. El GPT solicita información clave, como el propósito del proyecto, los resultados esperados, las áreas clave de desempeño y los recursos disponibles, para generar KPIs claros, relevantes y accionables. Responde de manera profesional, clara y con un enfoque orientado a resultados, manteniendo un tono accesible y útil. Proporciona orientación adicional, ejemplos o plantillas si el usuario lo solicita.",
+      name: assistantData.name,
+      instructions: assistantData.instructions,
       tools: [{ type: "file_search" }], // Include the file search tool
-      model: "gpt-4o-mini",
+      model: assistantData.model,
     });
 
     console.log("Assistant Created:", assistant.id);
@@ -24,21 +45,17 @@ export const createAssistant = async () => {
 
 export const createVectorStore = async (assistantId: string) => {
   try {
-    // 1. Fetch your PDF metadata from wherever you store them
+    // Fetch the PDFs
     const { data: pdfs } = await axios.get(
       "https://xz9q-ubfs-tc3s.n7d.xano.io/api:--QzKR6t/pdfs"
     );
 
-    // 2. Download each PDF file as an array buffer, then convert it to a "File"
     const files = await Promise.all(
       pdfs.map(async (pdf: PDF) => {
-        // a) Get raw bytes
         const response = await axios.get(pdf.file.url, {
-          responseType: "arraybuffer", // ensures we get binary data
+          responseType: "arraybuffer",
         });
 
-        // b) Convert that binary data into a File with the correct type
-        //    Pass the PDF name and MIME type so that it's a valid PDF.
         const file = await toFile(response.data, pdf.file.name, {
           type: "application/pdf",
         });
@@ -48,39 +65,126 @@ export const createVectorStore = async (assistantId: string) => {
 
     console.log("Files to upload:", files);
 
-    // 3. Create the vector store
     const vectorStore = await openai.beta.vectorStores.create({
       name: "Uploaded PDFs",
+      expires_after: {
+        anchor: "last_active_at",
+        days: 3
+      }
     });
 
-    // 4. Upload the files to the vector store
     await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
       files,
     });
 
-    // 5. Link the vector store to the assistant
     await openai.beta.assistants.update(assistantId, {
       tool_resources: {
         file_search: { vector_store_ids: [vectorStore.id] },
       },
     });
 
-    const fileIds = [];
-    for await (const file of openai.beta.vectorStores.files.list(
-      vectorStore.id,
-    )) {
-      fileIds.push(file.id);
-    }
-
-    console.log("Vector store created and linked:", vectorStore.id);
-    console.log("Files uploaded:", fileIds);
+    console.log("Vector Store created and linked:", vectorStore.id);
     return vectorStore.id;
   } catch (error) {
     console.error("Error creating vector store:", error);
     throw error;
   }
 };
-// everything else can remain the same
+
+
+export const updateAssistantWithVectorStore = async (
+  assistantId: string,
+  vectorStoreId: string
+) => {
+  try {
+    // Update the assistant with the existing vector store
+    await openai.beta.assistants.update(assistantId, {
+      tool_resources: {
+        file_search: { vector_store_ids: [vectorStoreId] },
+      },
+    });
+
+    console.log(`Updated Assistant ${assistantId} with Vector Store ${vectorStoreId}`);
+  } catch (error) {
+    console.error("Error updating assistant with vector store:", error);
+    throw error;
+  }
+};
+
+export const initializeAssistantAndStore = async (): Promise<{ assistantId: string; vectorStoreId: string }> => {
+  return await withLock(async () => {
+    const assistantStore = useAssistantStore.getState();
+
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      throw new Error("Authorization token is missing.");
+    }
+
+    // Fetch current assistant data and PDFs
+    const [assistantResponse, currentPDFs] = await Promise.all([
+      axios.get("https://xz9q-ubfs-tc3s.n7d.xano.io/api:3sOKW1_l/assistant/1", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      }),
+      fetchPDFs(),
+    ]);
+
+    const fetchedAssistantData = assistantResponse.data;
+
+    // Check if assistant data or PDFs have changed
+    const hasAssistantDataChanged =
+      JSON.stringify(assistantStore.assistantData) !==
+      JSON.stringify(fetchedAssistantData);
+    const havePDFsChanged =
+      JSON.stringify(assistantStore.pdfs) !== JSON.stringify(currentPDFs);
+
+    console.log("Assistant Data Changed:", hasAssistantDataChanged);
+    console.log("PDFs Changed:", havePDFsChanged);
+
+    if (!hasAssistantDataChanged && !havePDFsChanged) {
+      console.log("Using cached assistant and vector store.");
+      return {
+        assistantId: assistantStore.assistantId,
+        vectorStoreId: assistantStore.vectorStoreId,
+      };
+    }
+
+    let assistantId = assistantStore.assistantId;
+    let vectorStoreId = assistantStore.vectorStoreId;
+
+    // If assistant data has changed, create a new assistant and link the vector store
+    if (hasAssistantDataChanged) {
+      assistantId = await createAssistant(fetchedAssistantData);
+
+      if (vectorStoreId) {
+        await updateAssistantWithVectorStore(assistantId, vectorStoreId);
+      }
+
+      console.log("Created new Assistant ID and linked Vector Store:", assistantId);
+    }
+
+    // If PDFs have changed, create a new vector store and associate it
+    if (havePDFsChanged) {
+      vectorStoreId = await createVectorStore(assistantId!);
+      console.log("Created new Vector Store ID:", vectorStoreId);
+    }
+
+    // Update Zustand store with the latest data
+    useAssistantStore.setState({
+      assistantId,
+      vectorStoreId,
+      assistantData: fetchedAssistantData,
+      pdfs: currentPDFs,
+    });
+
+    console.log("To return:", {
+      assistantId,
+      vectorStoreId,
+    });
+
+    return { assistantId, vectorStoreId };
+  });
+};
+
 export const createThread = async (message: string) => {
   try {
     const thread = await openai.beta.threads.create({
@@ -141,4 +245,10 @@ export const fetchThreadMessages = async (threadId: string, runId: string) => {
     console.error("Error fetching thread messages:", error);
     throw error;
   }
+};
+
+// Helper function to fetch PDF URLs
+const fetchPDFs = async (): Promise<string[]> => {
+  const { data } = await axios.get("https://xz9q-ubfs-tc3s.n7d.xano.io/api:--QzKR6t/pdfs");
+  return data.map((pdf: PDF) => pdf.file.url);
 };

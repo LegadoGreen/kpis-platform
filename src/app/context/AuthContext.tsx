@@ -1,28 +1,9 @@
 "use client";
 
-import React, { createContext, useState, useContext, ReactNode } from "react";
+import React, { createContext, useState, useContext, ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "../utils/api";
-
-type User = {
-  id: number;
-  email: string;
-  name: string;
-  created_at: number;
-  _rol: {
-    id: number;
-    created_at: number;
-    rol_name: string;
-  };
-};
-
-type AuthContextType = {
-  authToken: string | null;
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  isAuthenticated: boolean;
-};
+import { AuthContextType, User } from "../interfaces/user";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -31,6 +12,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    const storedUser = localStorage.getItem("user");
+
+    if (token && storedUser) {
+      setAuthToken(token);
+      setUser(JSON.parse(storedUser));
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    }
+  }, []);
+
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post("/auth/login", { email, password });
@@ -38,9 +30,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       setAuthToken(token);
       setUser(userData);
+
+      localStorage.setItem("authToken", token);
+      localStorage.setItem("user", JSON.stringify(userData));
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      // Redirect based on the role
       if (userData._rol.rol_name === "sostenibilidad") {
         router.push("/chat");
       } else if (userData._rol.rol_name === "admin") {
@@ -55,12 +49,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setAuthToken(null);
     setUser(null);
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
     delete api.defaults.headers.common["Authorization"];
     router.push("/");
   };
 
+  const hasRole = (role: string) => user?._rol?.rol_name === role;
+
   return (
-    <AuthContext.Provider value={{ authToken, user, login, logout, isAuthenticated: !!authToken }}>
+    <AuthContext.Provider value={{ authToken, user, login, logout, isAuthenticated: !!authToken, hasRole }}>
       {children}
     </AuthContext.Provider>
   );
