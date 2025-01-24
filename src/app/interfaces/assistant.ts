@@ -24,7 +24,7 @@ export interface Conversation {
 export interface Message {
   id: number;
   conversation_id: number;
-  role: string;
+  role: 'user' | 'assistant';
   content: string;
   created_at?: string;
 }

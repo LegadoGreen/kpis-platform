@@ -12,7 +12,9 @@
     "@next/env": "^15.1.4",
     "@tailwindcss/typography": "^0.5.16",
     "axios": "^1.7.9",
+    "katex": "^0.16.21",
     "marked": "^15.0.6",
+    "marked-katex-extension": "^5.1.4",
     "next": "15.1.4",
     "openai": "^4.78.1",
     "react": "^19.0.0",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/katex": "^0.16.7",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
