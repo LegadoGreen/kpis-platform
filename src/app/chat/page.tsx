@@ -22,7 +22,6 @@ import {
 } from "../utils/assistantApi";
 import LogoMessage from "../components/LogoMessage";
 
-
 // Helper function to convert an ArrayBuffer to base64 (client-safe)
 function bufferToBase64(buffer: ArrayBuffer): string {
   let binary = "";
@@ -38,13 +37,8 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
-
-  // Store's assistant ID
   const assistantId = useAssistantStore((state) => state.assistantId);
 
-  // ---------------------------------
-  // 2) Initialization
-  // ---------------------------------
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -66,9 +60,6 @@ const ChatPage: React.FC = () => {
     initialize();
   }, []);
 
-  // ---------------------------------
-  // 3) New conversation
-  // ---------------------------------
   const handleNewConversation = async () => {
     try {
       if (!assistantId) {
@@ -93,9 +84,6 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  // ---------------------------------
-  // 4) Send user message
-  // ---------------------------------
   const handleSendMessage = async (content: string) => {
     if (!assistantId) {
       console.error("Assistant ID not initialized");
@@ -121,7 +109,6 @@ const ChatPage: React.FC = () => {
         setThreadId(currentThreadId);
       }
 
-      // Ensure we have an active conversation in Xano
       let conversationId = activeConversationId;
       if (!conversationId) {
         const newConvTitle = `Conversation ${conversations.length + 1}`;
@@ -131,23 +118,17 @@ const ChatPage: React.FC = () => {
         setActiveConversationId(conversationId);
       }
 
-      // 1) Add user message to the thread
       await addMessageToThread(currentThreadId as string, content);
 
-      // 2) Create user message in Xano
       if (conversationId) {
         await createMessage(conversationId, "user", content);
       }
 
-      // 3) Run the assistant on this thread
       const runId = await runAssistantOnThread(currentThreadId as string, assistantId);
 
-      // 4) Fetch assistant messages
       if (runId) {
         const assistantMessages = await fetchThreadMessages(currentThreadId as string, runId);
 
-        // The local AI might return multiple "pieces" in a single message.
-        // We'll iterate over each piece and handle text/image accordingly.
         for (const singleResponse of assistantMessages) {
           for (const piece of singleResponse.content) {
             // TEXT
@@ -174,12 +155,10 @@ const ChatPage: React.FC = () => {
             else if (piece.type === "image_file" && piece.image_file?.file_id) {
               const fileId = piece.image_file.file_id;
               
-              // 1) Save the file_id to Xano (instead of base64 data)
               if (conversationId) {
                 await createMessage(conversationId, singleResponse.role, fileId);
               }
 
-              // 2) Retrieve from OpenAI and store in local chat as base64
               try {
                 const arrayBuffer = await getImageFromContent(fileId);
 
@@ -217,15 +196,12 @@ const ChatPage: React.FC = () => {
   // ---------------------------------
   const handleSelectConversation = async (conversationId: number) => {
     try {
-      // 1) Fetch messages from Xano
       const fetchedMessages = await getMessages(conversationId);
 
-      // 2) Update local states
       setActiveConversationId(conversationId);
       setThreadId(fetchedMessages.thread_id);
 
-      // 3) Convert to LocalMessage shape
-      //    We stored text messages as text content, but images as file_id
+      // We stored text messages as text content, but images as file_id
       const localMsgFormat: LocalMessage[] = await Promise.all(
         fetchedMessages.messages.map(async (msg): Promise<LocalMessage> => {
           const maybeFileId = msg.content;
@@ -256,19 +232,14 @@ const ChatPage: React.FC = () => {
         })
       );
 
-      // 4) Sort by ID
       localMsgFormat.sort((a, b) => a.id - b.id);
 
-      // 5) Set the messages to display in ChatWindow
       setMessages(localMsgFormat);
     } catch (error) {
       console.error("Error selecting conversation:", error);
     }
   };
 
-  // ---------------------------------
-  // 6) Render
-  // ---------------------------------
   return assistantId ? (
     <div className="flex h-screen bg-background">
       <Sidebar
@@ -280,7 +251,6 @@ const ChatPage: React.FC = () => {
         onSelectConversation={(id) => handleSelectConversation(Number(id))}
       />
       <div className="flex flex-col flex-1 p-4 space-y-4">
-        {/* Pass the entire messages array to ChatWindow */}
         <ChatWindow messages={messages} />
         <ChatInput onSendMessage={handleSendMessage} />
       </div>
