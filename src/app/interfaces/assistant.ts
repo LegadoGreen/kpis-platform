@@ -29,6 +29,14 @@ export interface Message {
   created_at?: string;
 }
 
+export interface LocalMessage {
+  id: number;
+  role: "user" | "assistant";
+  type: "text" | "image";
+  content: string;
+  fileId?: string; 
+}
+
 export interface Agent {
   id: number;
   name: string;

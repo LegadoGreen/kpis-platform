@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import ChatInput from "../components/ChatInput";
 import { useAssistantStore } from "../store/assistantStore";
-import { Conversation } from "../interfaces/assistant";
+import { Conversation, LocalMessage } from "../interfaces/assistant";
 import {
   initializeAssistantAndStore,
   createThread,
@@ -21,13 +21,7 @@ import {
   getMessages,
 } from "../utils/assistantApi";
 import LogoMessage from "../components/LogoMessage";
-interface LocalMessage {
-  id: number;
-  role: "user" | "assistant";
-  type: "text" | "image";   // to differentiate text vs. image
-  content: string;          // text content or base64 image data
-  fileId?: string;          // store file_id if it's an image
-}
+
 
 // Helper function to convert an ArrayBuffer to base64 (client-safe)
 function bufferToBase64(buffer: ArrayBuffer): string {
@@ -155,7 +149,6 @@ const ChatPage: React.FC = () => {
         // The local AI might return multiple "pieces" in a single message.
         // We'll iterate over each piece and handle text/image accordingly.
         for (const singleResponse of assistantMessages) {
-          // singleResponse.content is an array: e.g. [{type: "text"}, {type: "image_file"}]
           for (const piece of singleResponse.content) {
             // TEXT
             if (piece.type === "text") {
@@ -166,7 +159,7 @@ const ChatPage: React.FC = () => {
                 ...prev,
                 {
                   id: Date.now(),
-                  role: singleResponse.role, // "assistant"
+                  role: singleResponse.role,
                   type: "text",
                   content: textContent,
                 },
@@ -188,11 +181,10 @@ const ChatPage: React.FC = () => {
 
               // 2) Retrieve from OpenAI and store in local chat as base64
               try {
-                // getImageFromFileId => you must define in utils/openai.ts
                 const arrayBuffer = await getImageFromContent(fileId);
 
                 // Convert to base64
-                const base64String = bufferToBase64(arrayBuffer);
+                const base64String = bufferToBase64(arrayBuffer as unknown as ArrayBuffer);
                 const dataUrl = `data:image/png;base64,${base64String}`;
 
                 // Add to local state
@@ -202,15 +194,14 @@ const ChatPage: React.FC = () => {
                     id: Date.now(),
                     role: singleResponse.role, 
                     type: "image",
-                    content: dataUrl, // base64 data URL
-                    fileId: fileId,   // optional reference
+                    content: dataUrl,
+                    fileId: fileId,
                   },
                 ]);
               } catch (err) {
                 console.error("Error fetching image from file_id:", fileId, err);
               }
             } else {
-              // Some unknown message type
               console.warn("Unknown content type:", piece);
             }
           }
@@ -235,36 +226,35 @@ const ChatPage: React.FC = () => {
 
       // 3) Convert to LocalMessage shape
       //    We stored text messages as text content, but images as file_id
-      const localMsgFormat: LocalMessage[] = fetchedMessages.messages.map((msg): LocalMessage => {
-        // If you stored actual text in Xano, then it's text.
-        // If you stored an image file_id, you might want to do a separate fetch here
-        // or simply display a placeholder. For example:
-        
-        // A simple approach: treat everything as text except if it looks like file-Gxxxx...
-        const maybeFileId = msg.content;
-        const isFileId = maybeFileId?.startsWith("file-");
+      const localMsgFormat: LocalMessage[] = await Promise.all(
+        fetchedMessages.messages.map(async (msg): Promise<LocalMessage> => {
+          const maybeFileId = msg.content;
+          const isFileId = maybeFileId?.startsWith("file-");
 
-        if (isFileId) {
-          // It's an image message. If you want to fetch them automatically
-          // when opening a conversation, you'd replicate the logic here.
-          // For brevity, let's store the file_id, but not fetch immediately:
-          return {
-            id: msg.id,
-            role: msg.role as "user" | "assistant",
-            type: "image",
-            content: "",  // or a placeholder
-            fileId: maybeFileId,
-          };
-        } else {
-          // It's text
-          return {
-            id: msg.id,
-            role: msg.role,
-            type: "text",
-            content: msg.content,
-          };
-        }
-      });
+          if (isFileId) {
+            const arrayBuffer = await getImageFromContent(maybeFileId);
+            // Convert to base64
+            const base64String = bufferToBase64(arrayBuffer as unknown as ArrayBuffer);
+            const dataUrl = `data:image/png;base64,${base64String}`;
+
+            return {
+              id: msg.id,
+              role: msg.role as "user" | "assistant",
+              type: "image",
+              content: dataUrl,
+              fileId: maybeFileId,
+            };
+          } else {
+            // It's text
+            return {
+              id: msg.id,
+              role: msg.role,
+              type: "text",
+              content: msg.content,
+            };
+          }
+        })
+      );
 
       // 4) Sort by ID
       localMsgFormat.sort((a, b) => a.id - b.id);

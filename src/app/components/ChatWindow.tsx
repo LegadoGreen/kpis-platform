@@ -2,16 +2,7 @@ import React from "react";
 import { marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import "katex/dist/katex.min.css";
-
-type ChatWindowProps = {
-  messages: {
-    id: number;
-    role: "user" | "assistant";
-    type: "text" | "image";
-    content: string; // text or base64 data URL
-    fileId?: string;   // store file ID if needed
-  }[];
-};
+import { LocalMessage } from "../interfaces/assistant";
 
 marked.use(
   markedKatex({
@@ -20,7 +11,7 @@ marked.use(
   })
 );
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
+const ChatWindow: React.FC<{ messages: LocalMessage[] }> = ({ messages }) => {
   return (
     <div className="flex-1 p-6 bg-white rounded-lg shadow overflow-y-auto">
       {messages.map((msg) => {
@@ -33,11 +24,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
           return (
             <div
               key={msg.id}
-              className={`p-3 my-2 rounded-lg ${
-                isUser
+              className={`p-3 my-2 rounded-lg ${isUser
                   ? "bg-textImportant text-white ml-auto max-w-[80%]"
                   : "bg-background text-textPrimary"
-              }`}
+                }`}
             >
               <div
                 dangerouslySetInnerHTML={{ __html: renderedContent }}
@@ -51,11 +41,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
           return (
             <div
               key={msg.id}
-              className={`p-3 my-2 rounded-lg ${
-                isUser
+              className={`p-3 my-2 rounded-lg ${isUser
                   ? "bg-textImportant ml-auto max-w-[80%]"
                   : "bg-background"
-              }`}
+                }`}
             >
               {/* Render the image */}
               <img
@@ -66,7 +55,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages }) => {
             </div>
           );
         }
-        // UNKNOWN
         else {
           return (
             <div key={msg.id} className="p-3 my-2 rounded-lg bg-red-100">
