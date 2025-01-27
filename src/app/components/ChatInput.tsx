@@ -3,15 +3,25 @@ import { FiSend } from "react-icons/fi";
 
 type ChatInputProps = {
   onSendMessage: (content: string) => void;
+  isWaiting: boolean;
 };
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isWaiting }) => {
   const [message, setMessage] = useState("");
 
   const handleSend = () => {
-    if (message.trim()) {
-      onSendMessage(message);
+    const trimmed = message.trim();
+    if (trimmed) {
+      onSendMessage(trimmed);
       setMessage("");
+    }
+  };
+
+  // Capture "Enter" key
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -22,12 +32,20 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Type a message..."
-          className="w-full p-3 pr-12 border rounded-full focus:outline-none focus:ring-2 focus:ring-textImportant"
+          disabled={isWaiting} // disable while waiting
+          className="w-full p-3 pr-12 border rounded-full 
+                     focus:outline-none focus:ring-2
+                     focus:ring-textImportant
+                     disabled:opacity-50"
         />
         <button
           onClick={handleSend}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-textImportant hover:text-opacity-90"
+          disabled={isWaiting} // also disable the send button
+          className="absolute right-3 top-1/2 transform 
+                     -translate-y-1/2 text-textImportant 
+                     hover:text-opacity-90 disabled:cursor-not-allowed"
         >
           <FiSend size={24} />
         </button>

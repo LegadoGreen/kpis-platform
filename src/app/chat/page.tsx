@@ -12,7 +12,7 @@ import {
   addMessageToThread,
   runAssistantOnThread,
   fetchThreadMessages,
-  getImageFromContent  
+  getImageFromContent,
 } from "../utils/openai";
 import {
   createConversation,
@@ -22,7 +22,6 @@ import {
 } from "../utils/assistantApi";
 import LogoMessage from "../components/LogoMessage";
 
-// Helper function to convert an ArrayBuffer to base64 (client-safe)
 function bufferToBase64(buffer: ArrayBuffer): string {
   let binary = "";
   const bytes = new Uint8Array(buffer);
@@ -37,6 +36,8 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [isWaiting, setIsWaiting] = useState<boolean>(false); // NEW
+
   const assistantId = useAssistantStore((state) => state.assistantId);
 
   useEffect(() => {
@@ -67,15 +68,12 @@ const ChatPage: React.FC = () => {
         return;
       }
 
-      // 1) Create a new thread with openai.ts
       const newThreadId = await createThread("Start a new conversation");
       setThreadId(newThreadId);
 
-      // 2) Store the conversation in Xano
       const newConvTitle = `Conversation ${conversations.length + 1}`;
       const newConv = await createConversation(assistantId, newThreadId, newConvTitle);
 
-      // 3) Update local state
       setConversations((prev) => [...prev, newConv]);
       setActiveConversationId(newConv.id);
       setMessages([]);
@@ -90,19 +88,34 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    // Optimistically show user message in local chat
+    // Optimistically show user message
+    const userMsgId = Date.now();
     setMessages((prev) => [
       ...prev,
       {
-        id: Date.now(),
+        id: userMsgId,
         role: "user",
         type: "text",
-        content: content,
+        content,
       },
     ]);
 
+    // Insert a "thinking" message right away
+    // Use a special ID so we can remove it easily later
+    const thinkingId = Date.now() + 1;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: thinkingId,
+        role: "assistant",
+        type: "thinking", // We'll handle this in ChatWindow
+        content: "Pensando...",
+      },
+    ]);
+
+    setIsWaiting(true); // disable input
+
     try {
-      // Ensure we have a thread
       let currentThreadId = threadId;
       if (!currentThreadId) {
         currentThreadId = await createThread("Start a new conversation");
@@ -126,16 +139,18 @@ const ChatPage: React.FC = () => {
 
       const runId = await runAssistantOnThread(currentThreadId as string, assistantId);
 
+      // Remove or replace the "thinking" message now that we have a runId
+      setMessages((prev) => prev.filter((m) => m.id !== thinkingId));
+
       if (runId) {
         const assistantMessages = await fetchThreadMessages(currentThreadId as string, runId);
 
+        // The response might contain multiple message chunks
         for (const singleResponse of assistantMessages) {
           for (const piece of singleResponse.content) {
             // TEXT
             if (piece.type === "text") {
               const textContent = piece.text?.value || "";
-              
-              // Add to local state
               setMessages((prev) => [
                 ...prev,
                 {
@@ -154,24 +169,21 @@ const ChatPage: React.FC = () => {
             // IMAGE
             else if (piece.type === "image_file" && piece.image_file?.file_id) {
               const fileId = piece.image_file.file_id;
-              
+
               if (conversationId) {
                 await createMessage(conversationId, singleResponse.role, fileId);
               }
 
               try {
                 const arrayBuffer = await getImageFromContent(fileId);
-
-                // Convert to base64
                 const base64String = bufferToBase64(arrayBuffer as unknown as ArrayBuffer);
                 const dataUrl = `data:image/png;base64,${base64String}`;
 
-                // Add to local state
                 setMessages((prev) => [
                   ...prev,
                   {
                     id: Date.now(),
-                    role: singleResponse.role, 
+                    role: singleResponse.role,
                     type: "image",
                     content: dataUrl,
                     fileId: fileId,
@@ -188,12 +200,12 @@ const ChatPage: React.FC = () => {
       }
     } catch (error) {
       console.error("Error during message exchange:", error);
+    } finally {
+      // Re-enable input
+      setIsWaiting(false);
     }
   };
 
-  // ---------------------------------
-  // 5) Select an existing conversation
-  // ---------------------------------
   const handleSelectConversation = async (conversationId: number) => {
     try {
       const fetchedMessages = await getMessages(conversationId);
@@ -201,7 +213,6 @@ const ChatPage: React.FC = () => {
       setActiveConversationId(conversationId);
       setThreadId(fetchedMessages.thread_id);
 
-      // We stored text messages as text content, but images as file_id
       const localMsgFormat: LocalMessage[] = await Promise.all(
         fetchedMessages.messages.map(async (msg): Promise<LocalMessage> => {
           const maybeFileId = msg.content;
@@ -209,7 +220,6 @@ const ChatPage: React.FC = () => {
 
           if (isFileId) {
             const arrayBuffer = await getImageFromContent(maybeFileId);
-            // Convert to base64
             const base64String = bufferToBase64(arrayBuffer as unknown as ArrayBuffer);
             const dataUrl = `data:image/png;base64,${base64String}`;
 
@@ -221,7 +231,6 @@ const ChatPage: React.FC = () => {
               fileId: maybeFileId,
             };
           } else {
-            // It's text
             return {
               id: msg.id,
               role: msg.role,
@@ -233,7 +242,6 @@ const ChatPage: React.FC = () => {
       );
 
       localMsgFormat.sort((a, b) => a.id - b.id);
-
       setMessages(localMsgFormat);
     } catch (error) {
       console.error("Error selecting conversation:", error);
@@ -252,7 +260,7 @@ const ChatPage: React.FC = () => {
       />
       <div className="flex flex-col flex-1 p-4 space-y-4">
         <ChatWindow messages={messages} />
-        <ChatInput onSendMessage={handleSendMessage} />
+        <ChatInput onSendMessage={handleSendMessage} isWaiting={isWaiting} />
       </div>
     </div>
   ) : (

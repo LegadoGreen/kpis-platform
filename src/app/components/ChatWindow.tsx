@@ -17,17 +17,17 @@ const ChatWindow: React.FC<{ messages: LocalMessage[] }> = ({ messages }) => {
       {messages.map((msg) => {
         const isUser = msg.role === "user";
 
-        // TEXT MESSAGE?
+        // 1) TEXT MESSAGE
         if (msg.type === "text") {
-          // Convert Markdown (with possible KaTeX) to HTML
           const renderedContent = marked(msg.content);
           return (
             <div
               key={msg.id}
-              className={`p-3 my-2 rounded-lg ${isUser
+              className={`p-3 my-2 rounded-lg ${
+                isUser
                   ? "bg-textImportant text-white ml-auto max-w-[80%]"
                   : "bg-background text-textPrimary"
-                }`}
+              }`}
             >
               <div
                 dangerouslySetInnerHTML={{ __html: renderedContent }}
@@ -36,27 +36,41 @@ const ChatWindow: React.FC<{ messages: LocalMessage[] }> = ({ messages }) => {
             </div>
           );
         }
-        // IMAGE MESSAGE?
+        // 2) IMAGE MESSAGE
         else if (msg.type === "image") {
           return (
             <div
               key={msg.id}
-              className={`p-3 my-2 rounded-lg ${isUser
+              className={`p-3 my-2 rounded-lg ${
+                isUser
                   ? "bg-textImportant ml-auto max-w-[80%]"
                   : "bg-background"
-                }`}
+              }`}
             >
-              {/* Render the image */}
               <picture>
                 <img
-                  src={msg.content} // The base64 data URI
+                  src={msg.content}
                   alt="AI Generated"
-                  className="max-w-full h-auto rounded" 
+                  className="max-w-full h-auto rounded"
                 />
               </picture>
             </div>
           );
         }
+        // 3) THINKING MESSAGE
+        else if (msg.type === "thinking") {
+          return (
+            <div
+              key={msg.id}
+              className={`p-3 my-2 rounded-lg bg-background text-textPrimary`}
+            >
+              <span>Creando respuesta</span>
+              {/* animated dots */}
+              <span className="typing-indicator"></span>
+            </div>
+          );
+        }
+        // 4) UNKNOWN
         else {
           return (
             <div key={msg.id} className="p-3 my-2 rounded-lg bg-red-100">
