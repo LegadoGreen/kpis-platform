@@ -24,9 +24,17 @@ export interface Conversation {
 export interface Message {
   id: number;
   conversation_id: number;
-  role: string;
+  role: 'user' | 'assistant';
   content: string;
   created_at?: string;
+}
+
+export interface LocalMessage {
+  id: number;
+  role: "user" | "assistant";
+  type: "text" | "image";
+  content: string;
+  fileId?: string; 
 }
 
 export interface Agent {

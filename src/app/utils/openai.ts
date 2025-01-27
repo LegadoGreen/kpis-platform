@@ -32,7 +32,10 @@ export const createAssistant = async (assistantData: Agent) => {
     const assistant = await openai.beta.assistants.create({
       name: assistantData.name,
       instructions: assistantData.instructions,
-      tools: [{ type: "file_search" }], // Include the file search tool
+      tools: [
+        { type: "file_search" },
+        { type: "code_interpreter" }
+      ], // Include the file search tool
       model: assistantData.model,
     });
 
@@ -247,6 +250,23 @@ export const fetchThreadMessages = async (threadId: string, runId: string) => {
     throw error;
   }
 };
+
+// Get image from file content
+export const getImageFromContent = async (content: string) => {
+  try {
+    const response = await openai.files.content(content);
+
+    // Extract the binary data from the Response object
+    const image_data = await response.arrayBuffer();
+    const image_data_buffer = Buffer.from(image_data);
+
+    return image_data_buffer;
+  } catch (error) {
+    console.error("Error getting image from content:", error);
+    throw error;
+  }
+};
+
 
 // Helper function to fetch PDF URLs
 const fetchPDFs = async (): Promise<string[]> => {
