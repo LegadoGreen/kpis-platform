@@ -47,11 +47,13 @@ const ChatWindow: React.FC<{ messages: LocalMessage[] }> = ({ messages }) => {
                 }`}
             >
               {/* Render the image */}
-              <img
-                src={msg.content} // The base64 data URI
-                alt="AI Generated"
-                className="max-w-full h-auto rounded"
-              />
+              <picture>
+                <img
+                  src={msg.content} // The base64 data URI
+                  alt="AI Generated"
+                  className="max-w-full h-auto rounded" 
+                />
+              </picture>
             </div>
           );
         }
