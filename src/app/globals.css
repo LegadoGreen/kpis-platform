@@ -12,6 +12,12 @@
   --legado-brown: #5a4c40;
 }
 
+@media (prefers-color-scheme: dark) {
+  .element {
+    color-scheme: dark;
+  }
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
