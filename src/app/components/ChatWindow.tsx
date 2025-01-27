@@ -13,7 +13,7 @@ marked.use(
 
 const ChatWindow: React.FC<{ messages: LocalMessage[] }> = ({ messages }) => {
   return (
-    <div className="flex-1 p-6 bg-white rounded-lg shadow overflow-y-auto">
+    <div className="flex-1 p-6 bg-white rounded-lg shadow overflow-y-auto markdown">
       {messages.map((msg) => {
         const isUser = msg.role === "user";
 
